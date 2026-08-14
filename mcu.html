@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The MCU, Branch by Branch — Story-Order Tree</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0a0a12; --bg-2:#0e0e19;
+    --surface:#14141f; --surface-2:#191926;
+    --border:#26263a; --border-soft:#1c1c2a;
+    --text:#f2f0ea; --text-dim:#a9a4ba; --text-faint:#6d6880;
+    --gold:#e6ac5c; --gold-dim:#5c4a2d; --gold-glow:rgba(230,172,92,.28);
+    --violet:#ae7cf2; --violet-dim:#453461; --violet-glow:rgba(174,124,242,.28);
+    --film:#f2b84f; --series:#5fc9e8; --special:#f28ab0; --cancel:#6d6880;
+    --radius:14px;
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    margin:0; background:radial-gradient(ellipse 900px 500px at 50% -10%, #171728 0%, var(--bg) 60%);
+    color:var(--text); font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;
+    line-height:1.55; padding-bottom:70px;
+  }
+  .wrap{max-width:640px; margin:0 auto; padding:0 18px;}
+  .display{font-family:'Bebas Neue',Impact,sans-serif; letter-spacing:.03em;}
+  .mono{font-family:'JetBrains Mono',ui-monospace,monospace;}
+
+  /* ---------- Header ---------- */
+  header.top{padding:38px 0 20px; text-align:left;}
+  .eyebrow{
+    display:inline-block; font-family:'JetBrains Mono',monospace; font-size:.68rem;
+    letter-spacing:.14em; text-transform:uppercase; color:var(--text-faint);
+    border:1px solid var(--border); border-radius:99px; padding:5px 12px; margin-bottom:16px;
+  }
+  h1.display{font-size:clamp(2.3rem,9vw,3.1rem); line-height:1.02; margin:0 0 14px; color:var(--text);}
+  h1.display em{font-style:normal; color:var(--gold);}
+  .lede{color:var(--text-dim); font-size:.96rem; max-width:56ch; margin:0 0 20px;}
+
+  .stats{display:flex; flex-wrap:wrap; gap:8px; margin-bottom:22px;}
+  .stat{
+    font-family:'JetBrains Mono',monospace; font-size:.68rem; letter-spacing:.04em;
+    background:var(--surface); border:1px solid var(--border); border-radius:8px;
+    padding:6px 10px; color:var(--text-dim); white-space:nowrap;
+  }
+  .stat b{color:var(--text); font-weight:600;}
+
+  .jumplink{
+    display:inline-flex; align-items:center; gap:6px; font-size:.82rem; color:var(--violet);
+    text-decoration:none; border:1px solid var(--violet-dim); padding:7px 13px; border-radius:99px;
+    margin-bottom:26px; transition:background .15s;
+  }
+  .jumplink:hover{background:var(--violet-glow);}
+
+  /* ---------- Controls ---------- */
+  .controls{
+    display:flex; gap:8px; margin-bottom:16px; position:sticky; top:0; z-index:5;
+    background:linear-gradient(var(--bg) 78%, transparent); padding:10px 0;
+  }
+  #search{
+    flex:1; min-width:0; background:var(--surface); border:1px solid var(--border);
+    color:var(--text); border-radius:10px; padding:10px 12px; font-size:.88rem;
+    font-family:'Inter',sans-serif;
+  }
+  #search:focus{outline:none; border-color:var(--violet);}
+  #search::placeholder{color:var(--text-faint);}
+  .btn{
+    background:var(--surface); border:1px solid var(--border); color:var(--text-dim);
+    border-radius:10px; padding:10px 13px; font-size:.78rem; font-family:'JetBrains Mono',monospace;
+    cursor:pointer; white-space:nowrap; transition:.15s;
+  }
+  .btn:hover{color:var(--text); border-color:var(--text-faint);}
+
+  /* ---------- Legend ---------- */
+  .legend{
+    display:flex; flex-wrap:wrap; gap:12px 16px; font-size:.72rem; color:var(--text-faint);
+    margin-bottom:34px; font-family:'JetBrains Mono',monospace;
+  }
+  .legend span{display:inline-flex; align-items:center; gap:6px;}
+  .dot{width:8px; height:8px; border-radius:50%; display:inline-block; flex:none;}
+  .dot.film{background:var(--film);} .dot.series{background:var(--series);}
+  .dot.special{background:var(--special);} .dot.cancelled{background:var(--cancel);}
+
+  /* ---------- Saga / tree structure ---------- */
+  .saga{
+    border-left:4px solid var(--accent); padding-left:20px; margin:0 0 46px 3px; position:relative;
+  }
+  .saga.infinity{--accent:var(--gold); --accent-dim:var(--gold-dim); --glow:var(--gold-glow);}
+  .saga.multiverse{--accent:var(--violet); --accent-dim:var(--violet-dim); --glow:var(--violet-glow);}
+  .saga-head{margin-bottom:18px;}
+  .saga-eyebrow{
+    font-family:'JetBrains Mono',monospace; font-size:.68rem; letter-spacing:.1em;
+    color:var(--accent); text-transform:uppercase;
+  }
+  .saga-head h2{
+    font-family:'Bebas Neue',sans-serif; letter-spacing:.02em; font-size:clamp(1.6rem,6vw,2.1rem);
+    margin:4px 0 8px; color:var(--text);
+  }
+  .saga-head p{color:var(--text-dim); font-size:.88rem; margin:0; max-width:52ch;}
+
+  details.phase{
+    border-left:2px solid var(--accent-dim); padding-left:16px; margin:0 0 12px 2px;
+  }
+  details.phase[open]{padding-bottom:4px;}
+  details.phase summary{
+    list-style:none; cursor:pointer; display:flex; align-items:center; gap:9px; flex-wrap:wrap;
+    padding:10px 4px; border-radius:8px; user-select:none;
+  }
+  details.phase summary::-webkit-details-marker{display:none;}
+  details.phase summary:hover{background:var(--surface);}
+  .phase-dot{width:9px; height:9px; border-radius:50%; background:var(--accent); flex:none; box-shadow:0 0 0 3px var(--glow);}
+  .phase-name{font-weight:700; font-size:.98rem;}
+  .phase-range{font-family:'JetBrains Mono',monospace; font-size:.72rem; color:var(--text-faint);}
+  .phase-count{
+    font-family:'JetBrains Mono',monospace; font-size:.68rem; color:var(--text-faint);
+    margin-left:auto; padding-left:8px;
+  }
+  .chev{width:9px; height:9px; border-right:2px solid var(--text-faint); border-bottom:2px solid var(--text-faint);
+    transform:rotate(-45deg); transition:transform .18s; flex:none;}
+  details.phase[open] > summary .chev{transform:rotate(45deg);}
+  .phase-blurb{color:var(--text-dim); font-size:.82rem; margin:0 0 12px 4px; max-width:50ch;}
+
+  .pill{
+    font-family:'JetBrains Mono',monospace; font-size:.62rem; letter-spacing:.06em; text-transform:uppercase;
+    padding:2px 8px; border-radius:99px; border:1px solid currentColor; white-space:nowrap;
+  }
+  .pill.current{color:var(--accent);}
+  .pill.upcoming{color:var(--violet); animation:pulse 2.6s ease-in-out infinite;}
+  @media (prefers-reduced-motion: reduce){ .pill.upcoming{animation:none;} }
+  @keyframes pulse{0%,100%{opacity:.65;}50%{opacity:1;}}
+
+  .entries{display:flex; flex-direction:column; gap:8px; margin:2px 0 6px;}
+  .entry{
+    background:var(--surface); border:1px solid var(--border-soft); border-radius:10px;
+    padding:11px 13px; border-left:3px solid var(--film);
+  }
+  .entry.series{border-left-color:var(--series);}
+  .entry.special{border-left-color:var(--special);}
+  .entry.cancelled{border-left-color:var(--cancel); opacity:.7;}
+  .entry.hide{display:none;}
+  details.phase.hide, details.related-group.hide{display:none;}
+  .entry-top{display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:3px;}
+  .entry-title{font-weight:600; font-size:.92rem;}
+  .entry.cancelled .entry-title{text-decoration:line-through; text-decoration-color:var(--text-faint);}
+  .entry-meta{font-family:'JetBrains Mono',monospace; font-size:.68rem; color:var(--text-faint); letter-spacing:.02em;}
+  .entry-note{font-size:.8rem; color:var(--text-dim); margin-top:4px;}
+  .entry-flag{font-size:.76rem; color:var(--gold); margin-top:4px;}
+  .saga.multiverse .entry-flag{color:var(--violet);}
+
+  /* ---------- Related (outside MCU) ---------- */
+  .related-divider{
+    text-align:center; color:var(--text-faint); font-size:.82rem; margin:10px 0 30px; max-width:48ch;
+    margin-left:auto; margin-right:auto;
+  }
+  details.related-outer{
+    border:1px dashed var(--border); border-radius:16px; padding:6px 18px 18px;
+  }
+  details.related-outer > summary{
+    list-style:none; cursor:pointer; padding:16px 0 6px; display:flex; align-items:center; gap:10px;
+  }
+  details.related-outer > summary::-webkit-details-marker{display:none;}
+  details.related-outer summary h2{
+    font-family:'Bebas Neue',sans-serif; font-size:1.5rem; letter-spacing:.02em; margin:0; color:var(--text-dim);
+  }
+  details.related-outer[open] summary h2{color:var(--text);}
+  details.related-outer > summary .chev{border-color:var(--text-faint); margin-left:auto;}
+  .related-intro{color:var(--text-dim); font-size:.85rem; margin:0 0 18px;}
+  details.related-group{border-left:2px solid var(--border); padding-left:14px; margin-bottom:14px;}
+  details.related-group summary{
+    list-style:none; cursor:pointer; padding:8px 4px; display:flex; gap:8px; align-items:baseline; flex-wrap:wrap;
+  }
+  details.related-group summary::-webkit-details-marker{display:none;}
+  .rg-name{font-weight:700; font-size:.88rem;}
+  .rg-sub{font-family:'JetBrains Mono',monospace; font-size:.66rem; color:var(--text-faint);}
+  .rg-note{color:var(--text-dim); font-size:.78rem; margin:2px 0 10px 4px; max-width:50ch;}
+  .rg-list{display:flex; flex-wrap:wrap; gap:6px; margin:4px 0 8px;}
+  .rg-item{
+    font-size:.76rem; background:var(--surface-2); border:1px solid var(--border-soft);
+    padding:5px 10px; border-radius:8px; color:var(--text-dim);
+  }
+  .rg-item b{color:var(--text); font-weight:500;}
+  .rg-item.up{border-color:var(--violet-dim); color:var(--violet);}
+
+  /* ---------- Footer ---------- */
+  footer{margin-top:40px; padding-top:22px; border-top:1px solid var(--border); color:var(--text-faint); font-size:.76rem;}
+  footer p{max-width:56ch; margin:0 0 8px;}
+
+  :focus-visible{outline:2px solid var(--violet); outline-offset:2px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <span class="eyebrow mono">MARVEL STUDIOS · 2008 – 2027</span>
+    <h1 class="display">The MCU, <em>Branch</em> by Branch</h1>
+    <p class="lede">Every Marvel Studios film and series, grouped the way Marvel actually releases them — Saga, then Phase — and ordered inside each phase by when the story happens, not when it came out. Two dates on every title, because in this universe they're rarely the same.</p>
+    <div class="stats" id="statsRow"></div>
+    <a class="jumplink" href="#phase-six">↓ Jump to the current chapter — Phase Six</a>
+
+    <div class="controls">
+      <input id="search" type="text" placeholder="Search a title…" autocomplete="off">
+      <button class="btn" id="expandAll">Expand all</button>
+      <button class="btn" id="collapseAll">Collapse</button>
+    </div>
+    <div class="legend">
+      <span><i class="dot film"></i>Film</span>
+      <span><i class="dot series"></i>Series</span>
+      <span><i class="dot special"></i>Special</span>
+      <span><i class="dot cancelled"></i>Cancelled</span>
+      <span>↩ set out of phase order</span>
+      <span style="color:var(--violet)">◆ upcoming</span>
+    </div>
+  </header>
+
+  <main id="tree"></main>
+
+  <div class="related-divider">That's the Sacred Timeline. Marvel has made — or nearly made — a lot of other things wearing the same name, in universes that never touch this one:</div>
+
+  <details class="related-outer" id="related">
+    <summary><h2 class="display">Related, Not MCU</h2><span class="chev"></span></summary>
+    <p class="related-intro">These share characters, actors, or the Marvel name, but Marvel Studios does not count them as canon to the tree above. Included for completeness.</p>
+    <div id="relatedTree"></div>
+  </details>
+
+  <footer>
+    <p><strong>Story-date note:</strong> in-universe placements follow the most widely cited fan and critical consensus at year-level precision — official sources are not always exact, and a few titles (marked ↩) land noticeably earlier or later than the phase they were released in.</p>
+    <p>Release dates for unreleased titles reflect what's publicly announced as of <strong>August 14, 2026</strong> and can still shift.</p>
+  </footer>
+
+</div>
+
+<script>
+// ---------------------------------------------------------------
+// DATA
+// ---------------------------------------------------------------
+const SAGAS = [
+  {
+    id:'infinity', cls:'infinity', name:'The Infinity Saga', range:'2008 – 2019',
+    blurb:'The one that built the team. Ends with the Snap, undone.',
+    phases:[
+      { id:'phase-one', name:'Phase One', range:'2008–2012', open:true, blurb:'Origin stories that quietly built toward one team-up.', entries:[
+        {t:'Captain America: The First Avenger', k:'film', r:'Jul 2011', s:'1942–1945'},
+        {t:'Iron Man', k:'film', r:'May 2008', s:'2010'},
+        {t:'The Incredible Hulk', k:'film', r:'Jun 2008', s:'2010–2011'},
+        {t:'Iron Man 2', k:'film', r:'May 2010', s:'2011'},
+        {t:'Thor', k:'film', r:'May 2011', s:'2011'},
+        {t:'The Avengers', k:'film', r:'May 2012', s:'2012'},
+      ]},
+      { id:'phase-two', name:'Phase Two', range:'2013–2015', blurb:'The team scatters into darker, weirder solo stories.', entries:[
+        {t:'Iron Man 3', k:'film', r:'May 2013', s:'2012–2013'},
+        {t:'Thor: The Dark World', k:'film', r:'Nov 2013', s:'2013'},
+        {t:'Captain America: The Winter Soldier', k:'film', r:'Apr 2014', s:'2014'},
+        {t:'Guardians of the Galaxy', k:'film', r:'Aug 2014', s:'1988 / 2014'},
+        {t:'Avengers: Age of Ultron', k:'film', r:'May 2015', s:'2015'},
+        {t:'Ant-Man', k:'film', r:'Jul 2015', s:'2015'},
+      ]},
+      { id:'phase-three', name:'Phase Three', range:'2016–2019', blurb:'The Avengers fracture, Thanos arrives, and the Saga closes.', entries:[
+        {t:'Guardians of the Galaxy Vol. 2', k:'film', r:'May 2017', s:'2014', f:'Set weeks after Vol. 1 — three years before its own release.'},
+        {t:'Captain America: Civil War', k:'film', r:'May 2016', s:'2016'},
+        {t:'Black Panther', k:'film', r:'Feb 2018', s:'2016', n:'Days after Civil War.'},
+        {t:'Doctor Strange', k:'film', r:'Nov 2016', s:'2016'},
+        {t:'Spider-Man: Homecoming', k:'film', r:'Jul 2017', s:'2016'},
+        {t:'Thor: Ragnarok', k:'film', r:'Nov 2017', s:'2017'},
+        {t:'Avengers: Infinity War', k:'film', r:'Apr 2018', s:'2018'},
+        {t:'Ant-Man and the Wasp', k:'film', r:'Jul 2018', s:'2018'},
+        {t:'Captain Marvel', k:'film', r:'Mar 2019', s:'1995 (epilogue 2018)'},
+        {t:'Avengers: Endgame', k:'film', r:'Apr 2019', s:'2018–2023'},
+        {t:'Spider-Man: Far From Home', k:'film', r:'Jul 2019', s:'2023'},
+      ]},
+    ]
+  },
+  {
+    id:'multiverse', cls:'multiverse', name:'The Multiverse Saga', range:'2021 – 2027',
+    blurb:'The Blip unwinds, the timeline branches, and Doctor Doom steps in.',
+    phases:[
+      { id:'phase-four', name:'Phase Four', range:'2021–2022', blurb:'No central villain yet — new heroes and the multiverse crack open.', entries:[
+        {t:'Black Widow', k:'film', r:'Jul 2021', s:'2016', f:'Set between Civil War and Infinity War — five years before its release.'},
+        {t:'WandaVision', k:'series', r:'Jan 2021', s:'2023'},
+        {t:'The Falcon and the Winter Soldier', k:'series', r:'Mar 2021', s:'2023'},
+        {t:'Loki', k:'series', r:'Jun 2021', s:'Branches from 2012', n:'Season 1 · the TVA, outside normal time.'},
+        {t:'What If…?', k:'series', r:'Aug 2021', s:'Multiversal', n:'Season 1.'},
+        {t:'Shang-Chi and the Legend of the Ten Rings', k:'film', r:'Sep 2021', s:'2023–2024'},
+        {t:'Eternals', k:'film', r:'Nov 2021', s:'7000 BC – 2023'},
+        {t:'Hawkeye', k:'series', r:'Nov 2021', s:'2024'},
+        {t:'Moon Knight', k:'series', r:'Mar 2022', s:'2024'},
+        {t:'Doctor Strange in the Multiverse of Madness', k:'film', r:'May 2022', s:'2024'},
+        {t:'Ms. Marvel', k:'series', r:'Jun 2022', s:'2024–2025'},
+        {t:'She-Hulk: Attorney at Law', k:'series', r:'Aug 2022', s:'2025'},
+        {t:'I Am Groot', k:'series', r:'Aug 2022', s:'Unfixed', n:'Season 1 shorts · sometime after Vol. 2.'},
+        {t:'Werewolf by Night', k:'special', r:'Oct 2022', s:'Unfixed'},
+        {t:'Thor: Love and Thunder', k:'film', r:'Jul 2022', s:'2025'},
+        {t:'Black Panther: Wakanda Forever', k:'film', r:'Nov 2022', s:'2025'},
+        {t:'The Guardians of the Galaxy Holiday Special', k:'special', r:'Nov 2022', s:'2025'},
+      ]},
+      { id:'phase-five', name:'Phase Five', range:'2023–2025', blurb:'Kang plans collapse; smaller, stranger stories fill the gap.', entries:[
+        {t:'Echo', k:'series', r:'Jan 2024', s:'2024'},
+        {t:'Deadpool & Wolverine', k:'film', r:'Jul 2024', s:'2024', n:'Mostly the Void — a space outside the main timeline.'},
+        {t:'Loki', k:'series', r:'Oct 2023', s:'TVA / outside time', n:'Season 2.'},
+        {t:'What If…?', k:'series', r:'Dec 2023 – Dec 2024', s:'Multiversal', n:'Seasons 2–3.'},
+        {t:'Ant-Man and the Wasp: Quantumania', k:'film', r:'Feb 2023', s:'2025'},
+        {t:'Guardians of the Galaxy Vol. 3', k:'film', r:'May 2023', s:'2025'},
+        {t:'Agatha All Along', k:'series', r:'Sep 2024', s:'2025', n:'Picks up after WandaVision\u2019s finale.'},
+        {t:'Secret Invasion', k:'series', r:'Jun 2023', s:'2025–2026'},
+        {t:'The Marvels', k:'film', r:'Nov 2023', s:'2025–2026'},
+        {t:'Your Friendly Neighborhood Spider-Man', k:'series', r:'Jan 2025', s:'2025–2026', n:'Season 1.'},
+        {t:'Daredevil: Born Again', k:'series', r:'Mar 2025', s:'2026', n:'Season 1.'},
+        {t:'Ironheart', k:'series', r:'Jun 2025', s:'2026'},
+        {t:'Thunderbolts*', k:'film', r:'May 2025', s:'2026'},
+      ]},
+      { id:'phase-six', name:'Phase Six', range:'2025–2027', current:true, open:true, blurb:'The Multiverse Saga\u2019s endgame — building to Doomsday and Secret Wars.', entries:[
+        {t:'The Fantastic Four: First Steps', k:'film', r:'Jul 2025', s:'1964', n:'Alternate Earth (Earth-828) — a retro-future timeline of its own.'},
+        {t:'Eyes of Wakanda', k:'series', r:'2025', s:'1260 BC – 1896 AD', n:'Animated anthology.'},
+        {t:'Marvel Zombies', k:'series', r:'2025', s:'Alternate universe', n:'Animated · a What If…? strand.'},
+        {t:'Wonder Man', k:'series', r:'Jan 2026', s:'2026', n:'Season 1 · canceled after one season.'},
+        {t:'Daredevil: Born Again', k:'series', r:'Feb 2026', s:'2027', n:'Season 2.'},
+        {t:'The Punisher: One Last Kill', k:'special', r:'May 2026', s:'2027', n:'Bridges into Born Again Season 2.'},
+        {t:'Spider-Man: Brand New Day', k:'film', r:'Jul 2026', s:'2028', n:'Four years after No Way Home.'},
+        {t:'Blade', k:'cancelled', r:'Announced 2019 — never released', n:'Mahershala Ali was cast as the new Blade. Pulled from the schedule and confirmed dead in July 2026 after seven years in development.'},
+        {t:'VisionQuest', k:'series', r:'Oct 2026', s:'2027–2028', u:true, n:'Closes the trilogy that began with WandaVision.'},
+        {t:'Your Friendly Neighborhood Spider-Man', k:'series', r:'Late 2026', s:'2027', u:true, n:'Season 2.'},
+        {t:'Avengers: Doomsday', k:'film', r:'Dec 18, 2026', s:'~2028', u:true, n:'Crosses over with Fox\u2019s X-Men and the Fantastic Four.'},
+        {t:'Daredevil: Born Again', k:'series', r:'2027', s:'2028', u:true, n:'Season 3.'},
+        {t:'Avengers: Secret Wars', k:'film', r:'Dec 2027', s:'TBD', u:true, n:'The Multiverse Saga finale.'},
+      ]},
+    ]
+  }
+];
+
+const RELATED = [
+  { id:'tv-era', name:'Marvel Television Era', sub:'2013–2020 · loosely connected, not MCU canon',
+    note:'Produced separately from Marvel Studios; Kevin Feige has said these sit outside the official continuity, despite the occasional shared reference.',
+    items:[
+      {t:'Agents of S.H.I.E.L.D.', r:'2013–2020'}, {t:'Agent Carter', r:'2015–2016'},
+      {t:'Daredevil', r:'2015–2018'}, {t:'Jessica Jones', r:'2015–2019'},
+      {t:'Luke Cage', r:'2016–2018'}, {t:'Iron Fist', r:'2017–2018'},
+      {t:'The Defenders', r:'2017'}, {t:'The Punisher', r:'2017–2019'},
+      {t:'Inhumans', r:'2017'}, {t:'Runaways', r:'2017–2019'},
+      {t:'Cloak & Dagger', r:'2018–2019'}, {t:'Helstrom', r:'2020'},
+    ]},
+  { id:'fox-marvel', name:'Fox\u2019s Marvel Universe', sub:'2000–2020 · X-Men & Fantastic Four, a separate continuity',
+    note:'A cast from this universe returns for Avengers: Doomsday (2026) — the one place this branch grafts onto the tree above.',
+    items:[
+      {t:'X-Men', r:'2000'}, {t:'X2', r:'2003'}, {t:'X-Men: The Last Stand', r:'2006'},
+      {t:'Fantastic Four', r:'2005'}, {t:'Fantastic Four: Rise of the Silver Surfer', r:'2007'},
+      {t:'X-Men Origins: Wolverine', r:'2009'}, {t:'X-Men: First Class', r:'2011'},
+      {t:'The Wolverine', r:'2013'}, {t:'X-Men: Days of Future Past', r:'2014'},
+      {t:'Fantastic Four', r:'2015'}, {t:'Deadpool', r:'2016'}, {t:'X-Men: Apocalypse', r:'2016'},
+      {t:'Logan', r:'2017'}, {t:'Deadpool 2', r:'2018'}, {t:'Dark Phoenix', r:'2019'},
+      {t:'The New Mutants', r:'2020'},
+    ]},
+  { id:'sony-spiderman', name:'Sony\u2019s Spider-Man Films', sub:'2002–2024 · pre-MCU trilogies + the Spider-Man Universe',
+    note:'Venom, Morbius, and Kraven the Hunter share Spider-Man\u2019s rights holder but not his MCU continuity.',
+    items:[
+      {t:'Spider-Man', r:'2002'}, {t:'Spider-Man 2', r:'2004'}, {t:'Spider-Man 3', r:'2007'},
+      {t:'The Amazing Spider-Man', r:'2012'}, {t:'The Amazing Spider-Man 2', r:'2014'},
+      {t:'Venom', r:'2018'}, {t:'Venom: Let There Be Carnage', r:'2021'}, {t:'Morbius', r:'2022'},
+      {t:'Madame Web', r:'2024'}, {t:'Kraven the Hunter', r:'2024'}, {t:'Venom: The Last Dance', r:'2024'},
+    ]},
+  { id:'spider-verse', name:'Spider-Verse', sub:'Animated · its own multiverse of continuities',
+    items:[
+      {t:'Spider-Man: Into the Spider-Verse', r:'2018'},
+      {t:'Spider-Man: Across the Spider-Verse', r:'2023'},
+      {t:'Spider-Man: Beyond the Spider-Verse', r:'2027', u:true},
+    ]},
+  { id:'og-blade', name:'The Original Blade Trilogy', sub:'1998–2004 · New Line Cinema, unrelated to the MCU',
+    items:[ {t:'Blade', r:'1998'}, {t:'Blade II', r:'2002'}, {t:'Blade: Trinity', r:'2004'} ]},
+];
+
+// ---------------------------------------------------------------
+// RENDER
+// ---------------------------------------------------------------
+const kindLabel = {film:'FILM', series:'SERIES', special:'SPECIAL', cancelled:'CANCELLED'};
+
+function entryHTML(e){
+  const meta = e.k === 'cancelled'
+    ? `${kindLabel[e.k]} · ${e.r}`
+    : `${kindLabel[e.k]} · Released ${e.r}${e.s ? ' · Set ' + e.s : ''}`;
+  return `
+    <div class="entry ${e.k}" data-title="${e.t.toLowerCase()}">
+      <div class="entry-top">
+        <span class="dot ${e.k}"></span>
+        <span class="entry-title">${e.t}</span>
+        ${e.u ? '<span class="pill upcoming">Upcoming</span>' : ''}
+      </div>
+      <div class="entry-meta mono">${meta}</div>
+      ${e.n ? `<div class="entry-note">${e.n}</div>` : ''}
+      ${e.f ? `<div class="entry-flag">↩ ${e.f}</div>` : ''}
+    </div>`;
+}
+
+function phaseHTML(p){
+  return `
+    <details class="phase" id="${p.id}" ${p.open ? 'open' : ''}>
+      <summary>
+        <span class="phase-dot"></span>
+        <span class="phase-name">${p.name}</span>
+        <span class="phase-range mono">${p.range}</span>
+        ${p.current ? '<span class="pill current">Current</span>' : ''}
+        <span class="phase-count mono">${p.entries.length}</span>
+        <span class="chev"></span>
+      </summary>
+      <div class="phase-blurb">${p.blurb}</div>
+      <div class="entries">${p.entries.map(entryHTML).join('')}</div>
+    </details>`;
+}
+
+function sagaHTML(s){
+  return `
+    <section class="saga ${s.cls}">
+      <div class="saga-head">
+        <span class="saga-eyebrow">${s.range}</span>
+        <h2>${s.name}</h2>
+        <p>${s.blurb}</p>
+      </div>
+      <div class="phases">${s.phases.map(phaseHTML).join('')}</div>
+    </section>`;
+}
+
+function relatedItemHTML(it){
+  return `<span class="rg-item${it.u ? ' up' : ''}"><b>${it.t}</b> · ${it.r}</span>`;
+}
+function relatedGroupHTML(g){
+  return `
+    <details class="related-group" id="${g.id}">
+      <summary><span class="rg-name">${g.name}</span><span class="rg-sub mono">${g.sub}</span><span class="chev"></span></summary>
+      ${g.note ? `<div class="rg-note">${g.note}</div>` : ''}
+      <div class="rg-list">${g.items.map(relatedItemHTML).join('')}</div>
+    </details>`;
+}
+
+document.getElementById('tree').innerHTML = SAGAS.map(sagaHTML).join('');
+document.getElementById('relatedTree').innerHTML = RELATED.map(relatedGroupHTML).join('');
+
+// stats
+const allEntries = SAGAS.flatMap(s => s.phases.flatMap(p => p.entries));
+const counts = allEntries.reduce((a,e)=>{a[e.k]=(a[e.k]||0)+1; return a;}, {});
+document.getElementById('statsRow').innerHTML = `
+  <span class="stat"><b>${allEntries.length}</b> titles</span>
+  <span class="stat"><b>${counts.film||0}</b> films</span>
+  <span class="stat"><b>${counts.series||0}</b> series</span>
+  <span class="stat"><b>${counts.special||0}</b> specials</span>
+  <span class="stat"><b>6</b> phases · <b>2</b> sagas</span>
+`;
+
+// ---------------------------------------------------------------
+// INTERACTION
+// ---------------------------------------------------------------
+document.getElementById('expandAll').addEventListener('click', () => {
+  document.querySelectorAll('details').forEach(d => d.open = true);
+});
+document.getElementById('collapseAll').addEventListener('click', () => {
+  document.querySelectorAll('details').forEach(d => d.open = false);
+});
+
+document.getElementById('search').addEventListener('input', (ev) => {
+  const q = ev.target.value.trim().toLowerCase();
+  const groups = document.querySelectorAll('details.phase, details.related-group');
+  if(!q){
+    document.querySelectorAll('.entry').forEach(e => e.classList.remove('hide'));
+    groups.forEach(g => g.classList.remove('hide'));
+    return;
+  }
+  groups.forEach(group => {
+    let any = false;
+    group.querySelectorAll('.entry, .rg-item').forEach(item => {
+      const hay = (item.dataset.title || item.textContent).toLowerCase();
+      const match = hay.includes(q);
+      if(item.classList.contains('entry')) item.classList.toggle('hide', !match);
+      if(match) any = true;
+    });
+    group.classList.toggle('hide', !any);
+    if(any) group.open = true;
+  });
+});
+</script>
+</body>
+</html>
